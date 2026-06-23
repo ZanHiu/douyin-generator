@@ -485,3 +485,17 @@ NINE_ROUTER_TRANSLATION_BATCH_SIZE=120
 ```
 
 Keep routing pinned to one model/provider for a whole video. Automatic fallback between different models can make subtitle translation inconsistent.
+
+## Env Files
+
+This repo intentionally uses only two real env contexts:
+
+- `.env` for local development
+- `.env.production` for production-like Docker Compose and managed deploy values
+
+And two matching templates:
+
+- `.env.example`
+- `.env.production.example`
+
+Northflank, Netlify, Supabase, Upstash, and R2 should all be configured from the same production key set shown in `.env.production.example`.
