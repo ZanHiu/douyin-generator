@@ -21,17 +21,18 @@ class VideoResolverService:
 
         output_template = str(job_dir / "input.%(ext)s")
         self._run(
-            [
-                settings.ytdlp_bin,
-                "--no-playlist",
-                "--merge-output-format",
-                "mp4",
-                "-f",
-                "bv*+ba/b",
-                "-o",
-                output_template,
-                source_url,
-            ],
+            self._build_ytdlp_command(
+                [
+                    "--no-playlist",
+                    "--merge-output-format",
+                    "mp4",
+                    "-f",
+                    "bv*+ba/b",
+                    "-o",
+                    output_template,
+                    source_url,
+                ]
+            ),
             "Could not download video from this URL.",
         )
 
@@ -50,13 +51,14 @@ class VideoResolverService:
 
     def _read_metadata(self, source_url: str) -> dict:
         result = self._run(
-            [
-                settings.ytdlp_bin,
-                "--dump-json",
-                "--no-playlist",
-                "--skip-download",
-                source_url,
-            ],
+            self._build_ytdlp_command(
+                [
+                    "--dump-json",
+                    "--no-playlist",
+                    "--skip-download",
+                    source_url,
+                ]
+            ),
             "Could not read video metadata.",
         )
         try:
@@ -149,6 +151,19 @@ class VideoResolverService:
             detail = (exc.stderr or exc.stdout or "").strip()
             message = f"{user_message} {detail}" if detail else user_message
             raise ProcessingError("VIDEO_FETCH_FAILED", message) from exc
+
+    def _build_ytdlp_command(self, args: list[str]) -> list[str]:
+        command = [settings.ytdlp_bin]
+        if settings.ytdlp_cookies_file:
+            cookies_path = Path(settings.ytdlp_cookies_file)
+            if not cookies_path.exists():
+                raise ProcessingError(
+                    "VIDEO_FETCH_FAILED",
+                    f"Configured YTDLP_COOKIES_FILE does not exist: {cookies_path}",
+                )
+            command.extend(["--cookies", str(cookies_path)])
+        command.extend(args)
+        return command
 
     @staticmethod
     def detect_platform(source_url: str) -> str | None:

@@ -63,6 +63,7 @@ class Settings:
     queue_cancellation_grace_seconds: int = int(os.getenv("QUEUE_CANCELLATION_GRACE_SECONDS", "30"))
     mock_fail_stage: str | None = os.getenv("MOCK_FAIL_STAGE") or None
     ytdlp_bin: str = os.getenv("YTDLP_BIN", "yt-dlp")
+    ytdlp_cookies_file: str | None = os.getenv("YTDLP_COOKIES_FILE") or None
     ffmpeg_bin: str = os.getenv("FFMPEG_BIN", "ffmpeg")
     ffprobe_bin: str = os.getenv("FFPROBE_BIN", "ffprobe")
     max_video_duration_seconds: int = int(os.getenv("MAX_VIDEO_DURATION_SECONDS", "180"))

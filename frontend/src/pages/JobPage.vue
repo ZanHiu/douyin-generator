@@ -15,7 +15,8 @@ const logsErrorMessage = ref('')
 const actionErrorMessage = ref('')
 const isCancelling = ref(false)
 const isRetrying = ref(false)
-let timer: number | undefined
+let statusTimer: number | undefined
+let logsTimer: number | undefined
 
 const isTerminal = computed(() => {
   return job.value && ['completed', 'failed', 'cancelled'].includes(job.value.status)
@@ -46,13 +47,68 @@ const progressStoppedAt = computed(() => {
 const resultVideoUrl = computed(() => resolveApiAssetUrl(job.value?.result_url))
 const subtitleDownloadUrl = computed(() => resolveApiAssetUrl(job.value?.subtitle_url))
 
+function clearPolling() {
+  if (statusTimer) {
+    window.clearTimeout(statusTimer)
+    statusTimer = undefined
+  }
+
+  if (logsTimer) {
+    window.clearTimeout(logsTimer)
+    logsTimer = undefined
+  }
+}
+
+function getJobPollingInterval() {
+  if (!job.value) return 5000
+  if (job.value.status === 'queued') return 8000
+  if (['processing', 'cancelling'].includes(job.value.status)) return 2000
+  return 0
+}
+
+function getLogsPollingInterval() {
+  if (!job.value) return 6000
+  if (job.value.status === 'queued') return 8000
+  if (['processing', 'cancelling'].includes(job.value.status)) return 4000
+  return 0
+}
+
+function scheduleJobPolling() {
+  if (statusTimer) {
+    window.clearTimeout(statusTimer)
+    statusTimer = undefined
+  }
+
+  const delay = getJobPollingInterval()
+  if (!delay) return
+
+  statusTimer = window.setTimeout(async () => {
+    await loadJob()
+    scheduleJobPolling()
+  }, delay)
+}
+
+function scheduleLogsPolling() {
+  if (logsTimer) {
+    window.clearTimeout(logsTimer)
+    logsTimer = undefined
+  }
+
+  const delay = getLogsPollingInterval()
+  if (!delay) return
+
+  logsTimer = window.setTimeout(async () => {
+    await loadLogs()
+    scheduleLogsPolling()
+  }, delay)
+}
+
 async function loadJob() {
   try {
     job.value = await getJob(jobId.value)
     errorMessage.value = ''
-    if (isTerminal.value && timer) {
-      window.clearInterval(timer)
-      timer = undefined
+    if (isTerminal.value) {
+      clearPolling()
     }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Could not load job.'
@@ -81,12 +137,8 @@ async function handleRetryJob() {
     await retryJob(jobId.value)
     await loadJob()
     await loadLogs()
-    if (!timer) {
-      timer = window.setInterval(async () => {
-        await loadJob()
-        await loadLogs()
-      }, 2000)
-    }
+    scheduleJobPolling()
+    scheduleLogsPolling()
   } catch (error) {
     actionErrorMessage.value = error instanceof Error ? error.message : 'Could not retry job.'
   } finally {
@@ -114,16 +166,12 @@ function formatDate(value: string | null) {
 onMounted(async () => {
   await loadJob()
   await loadLogs()
-  timer = window.setInterval(async () => {
-    await loadJob()
-    await loadLogs()
-  }, 2000)
+  scheduleJobPolling()
+  scheduleLogsPolling()
 })
 
 onUnmounted(() => {
-  if (timer) {
-    window.clearInterval(timer)
-  }
+  clearPolling()
 })
 </script>
 
