@@ -1,0 +1,374 @@
+.sidebar {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  display: flex;
+  width: 264px;
+  height: 100vh;
+  flex-direction: column;
+  border-right: 1px solid #dce3ea;
+  background: #101820;
+  color: #edf3f8;
+  padding: 20px 14px;
+  transition: width 180ms ease;
+}
+
+.sidebar *,
+.sidebar *::before,
+.sidebar *::after {
+  box-sizing: border-box;
+}
+
+.sidebar-collapsed {
+  width: 92px;
+  align-items: center;
+  padding-right: 20px;
+  padding-left: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-radius: 8px;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.sidebar-collapsed .brand {
+  width: 52px;
+  height: 52px;
+  justify-content: center;
+  padding: 0;
+}
+
+.brand-mark {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #1f7a5c;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.brand-copy,
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.brand small {
+  margin-top: 2px;
+  color: #9fb0bf;
+  font-size: 12px;
+}
+
+.sidebar-collapsed .brand-copy {
+  display: none;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 28px;
+}
+
+.sidebar-collapsed .sidebar-nav {
+  justify-items: center;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #b8c5d0;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sidebar-collapsed .nav-item {
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+}
+
+.nav-item:hover,
+.nav-item.router-link-exact-active {
+  background: #1a2630;
+  color: #ffffff;
+}
+
+.nav-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #334451;
+  border-radius: 7px;
+  color: #dce7ee;
+}
+
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .nav-label {
+  display: none;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.sidebar-session {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 14px 0 0;
+  border-top: 1px solid #22303b;
+}
+
+.sidebar-session-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: #131f28;
+  color: #b8c5d0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-session-trigger:hover {
+  background: #1a2630;
+  color: #ffffff;
+}
+
+.sidebar-session-avatar {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #334451;
+  border-radius: 999px;
+  background: #1a2630;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-session-copy,
+.sidebar-session-copy strong,
+.sidebar-session-copy small {
+  display: block;
+}
+
+.sidebar-session-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sidebar-session-copy strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-session-copy small {
+  margin-top: 4px;
+  color: #8ea2b2;
+  font-size: 12px;
+}
+
+.sidebar-session-chevron {
+  flex: 0 0 auto;
+  color: #7f94a4;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar-session-trigger:hover .sidebar-session-chevron,
+.sidebar-session-chevron-open {
+  color: #dce7ee;
+}
+
+.sidebar-session-chevron-open {
+  transform: rotate(180deg);
+}
+
+.sidebar-collapsed .sidebar-session {
+  display: grid;
+  width: 42px;
+  margin-inline: auto;
+  justify-items: center;
+  padding-inline: 0;
+}
+
+.sidebar-collapsed .sidebar-session-trigger {
+  width: 42px;
+  min-height: 42px;
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar-collapsed .sidebar-session-copy {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-session-chevron {
+  display: none;
+}
+
+.sidebar-session-popover {
+  position: absolute;
+  left: calc(100% + 28px);
+  right: auto;
+  bottom: 0;
+  width: 236px;
+  z-index: 6;
+}
+
+.sidebar-session-menu {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #22303b;
+  border-radius: 14px;
+  padding: 12px;
+  background: #131f28;
+  box-shadow: 0 18px 34px rgb(0 0 0 / 0.28);
+}
+
+.sidebar-session-menu-group {
+  display: grid;
+  gap: 6px;
+}
+
+.sidebar-session-menu-heading {
+  margin: 0;
+  color: #8ea2b2;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-session-menu-divider {
+  height: 1px;
+  background: #22303b;
+}
+
+.sidebar-session-popover-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  border: 1px solid #2b3a46;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #1a2630;
+  color: #d7e3eb;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sidebar-session-popover-button:hover {
+  background: #22303b;
+  color: #ffffff;
+}
+
+.sidebar-session-popover-button-danger {
+  border-color: #4a2f33;
+  color: #ffcdc7;
+}
+
+.sidebar-session-popover-button-danger:hover {
+  background: #3a2327;
+  color: #ffffff;
+}
+
+.sidebar-collapsed .sidebar-session-popover {
+  left: calc(100% + 39px);
+  right: auto;
+  bottom: 0;
+}
+
+.sidebar-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #273641;
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #131f28;
+  color: #b8c5d0;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sidebar-toggle:hover {
+  background: #1a2630;
+  color: #ffffff;
+}
+
+.sidebar-toggle svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+  width: 42px;
+  min-height: 42px;
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar-collapsed .sidebar-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-collapsed .sidebar-toggle span {
+  display: none;
+}

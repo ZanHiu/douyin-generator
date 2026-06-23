@@ -1,0 +1,94 @@
+.login-page {
+  min-height: 100vh;
+  padding: 36px;
+}
+
+.login-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  min-height: calc(100vh - 72px);
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+.login-hero,
+.login-card {
+  align-self: stretch;
+}
+
+.login-hero {
+  display: grid;
+  align-content: space-between;
+  gap: 32px;
+  border: 1px solid #dce3ea;
+  border-radius: 24px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top left, rgb(31 122 92 / 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgb(33 118 174 / 0.1), transparent 24%),
+    #101820;
+  color: #ffffff;
+}
+
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-brand strong,
+.login-brand small {
+  display: block;
+}
+
+.login-brand strong {
+  font-size: 20px;
+}
+
+.login-brand small {
+  margin-top: 4px;
+  color: rgb(255 255 255 / 0.72);
+}
+
+.login-copy {
+  max-width: 640px;
+}
+
+.login-copy .eyebrow,
+.login-copy p {
+  color: rgb(255 255 255 / 0.78);
+}
+
+.login-copy h1 {
+  margin: 10px 0 0;
+  font-size: 46px;
+  line-height: 1.08;
+}
+
+.login-copy p:last-child {
+  max-width: 560px;
+  margin-top: 14px;
+  line-height: 1.65;
+}
+
+.login-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  max-width: 460px;
+  width: 100%;
+  justify-self: end;
+}
+
+.login-card-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef7f3;
+  color: #1f7a5c;
+}

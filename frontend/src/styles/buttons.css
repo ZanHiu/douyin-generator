@@ -1,0 +1,86 @@
+.primary-button,
+.secondary-button,
+.danger-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #1f7a5c;
+  color: #ffffff;
+}
+
+.primary-button:hover {
+  background: #176a4f;
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+  
+.secondary-button {
+  border-color: #c9d3dc;
+  background: #ffffff;
+  color: #172026;
+}
+
+.secondary-button:hover {
+  background: #f4f7f9;
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.danger-button {
+  background: #f44336;
+  color: #ffffff;
+}
+
+.danger-button:hover {
+  background: #d32f2f;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.compact-button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.icon-button {
+  gap: 8px;
+}
+
+.error-message {
+  margin: 0;
+  border: 1px solid #f0b8b8;
+  border-radius: 7px;
+  padding: 12px;
+  color: #8f1f1f;
+  background: #fff5f5;
+  line-height: 1.45;
+}
+
+.success-message {
+  margin: 14px 0 0;
+  border: 1px solid #b9e4cc;
+  border-radius: 7px;
+  padding: 12px;
+  color: #176a4f;
+  background: #f0fbf5;
+  line-height: 1.45;
+}
