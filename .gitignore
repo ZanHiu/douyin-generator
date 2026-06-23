@@ -1,0 +1,49 @@
+# Environment
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.vite/
+.pnpm-store/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/.env.local
+
+# Local storage
+storage/jobs/*
+!storage/jobs/.gitkeep
+
+# Local test/cache artifacts
+.tmp/
+backend/.tmp/
+.pytest-tmp/
+.pytest-tmp-run-*/
+backend/.pytest-tmp/
+backend/.uv-cache-local/
+backend/.ruff_cache/
+.uv-cache/
+.tmp-uv-cache/
+
+# Local/private docs
+docs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

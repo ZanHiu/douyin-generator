@@ -1,0 +1,39 @@
+[project]
+name = "douyin-generator-backend"
+version = "0.1.0"
+description = "FastAPI backend and Celery worker for DouyinGenerator"
+requires-python = ">=3.11"
+dependencies = [
+  "alembic>=1.13.3",
+  "celery>=5.4.0",
+  "fastapi>=0.115.0",
+  "faster-whisper>=1.1.1",
+  "httpx>=0.27.2",
+  "minio>=7.2.8",
+  "openai>=2.0.0",
+  "psycopg[binary]>=3.2.1",
+  "pydantic>=2.9.2",
+  "python-dotenv>=1.0.1",
+  "redis>=5.1.1",
+  "sqlalchemy>=2.0.35",
+  "uvicorn[standard]>=0.30.6",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["alembic*", "tests*"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.3",
+  "ruff>=0.6.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["-p", "no:cacheprovider", "--basetemp", ".tmp/pytest"]
