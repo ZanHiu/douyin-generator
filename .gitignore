@@ -25,8 +25,11 @@ frontend/vite.config.d.ts
 frontend/.env.local
 
 # Local storage
-storage/jobs/*
-!storage/jobs/.gitkeep
+storage
+# storage/jobs/*
+# !storage/jobs/.gitkeep
+# storage/edits/*
+# !storage/edits/.gitkeep
 
 # Local test/cache artifacts
 .tmp/
