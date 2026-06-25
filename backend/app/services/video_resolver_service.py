@@ -5,17 +5,27 @@ from urllib.parse import urlparse
 
 from app.core.config import settings
 from app.services.errors import ProcessingError
+from app.services.resolvers.douyin_browser_resolver import DouyinBrowserResolver
+from app.services.resolvers.douyin_web_resolver import DouyinWebResolver
 from app.services.storage_service import StorageService
 
 
 class VideoResolverService:
     def __init__(self, storage: StorageService | None = None) -> None:
         self.storage = storage or StorageService()
+        self.douyin_web_resolver = DouyinWebResolver(self.storage)
+        self.douyin_browser_resolver = DouyinBrowserResolver(self.storage)
 
     def fetch(self, job_id: str, source_url: str) -> tuple[str, str]:
         self._validate_supported_url(source_url)
+        if self.detect_platform(source_url) == "douyin":
+            try:
+                return self.douyin_web_resolver.fetch(job_id, source_url)
+            except ProcessingError:
+                if not settings.douyin_browser_fallback_enabled:
+                    raise
+                return self.douyin_browser_resolver.fetch(job_id, source_url)
         job_dir = self.storage.job_dir(job_id)
-
         metadata = self._read_metadata(source_url)
         self._validate_duration(metadata.get("duration"))
 
@@ -44,6 +54,7 @@ class VideoResolverService:
         metadata["source_url"] = source_url
         metadata["platform"] = self.detect_platform(source_url)
         metadata["downloaded_path"] = str(input_path)
+        metadata["resolver"] = "yt_dlp"
 
         self._validate_duration(metadata.get("duration_seconds"))
         metadata_path = self.storage.write_json(job_id, "metadata.json", metadata)
@@ -94,6 +105,7 @@ class VideoResolverService:
             "duration_seconds": float(duration) if duration else None,
             "width": video_stream.get("width"),
             "height": video_stream.get("height"),
+            "has_audio_stream": any(stream.get("codec_type") == "audio" for stream in data.get("streams", [])),
             "file_size_bytes": input_path.stat().st_size,
         }
 
@@ -154,14 +166,6 @@ class VideoResolverService:
 
     def _build_ytdlp_command(self, args: list[str]) -> list[str]:
         command = [settings.ytdlp_bin]
-        if settings.ytdlp_cookies_file:
-            cookies_path = Path(settings.ytdlp_cookies_file)
-            if not cookies_path.exists():
-                raise ProcessingError(
-                    "VIDEO_FETCH_FAILED",
-                    f"Configured YTDLP_COOKIES_FILE does not exist: {cookies_path}",
-                )
-            command.extend(["--cookies", str(cookies_path)])
         command.extend(args)
         return command
 

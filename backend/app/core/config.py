@@ -16,6 +16,12 @@ def resolve_from_repo(value: str) -> Path:
     return REPO_ROOT / path
 
 
+def resolve_command_path(value: str) -> str:
+    if "\\" in value or "/" in value or value.startswith("."):
+        return str(resolve_from_repo(value))
+    return value
+
+
 def parse_csv(value: str | None) -> list[str]:
     if not value:
         return []
@@ -62,10 +68,19 @@ class Settings:
     queue_stale_job_minutes: int = int(os.getenv("QUEUE_STALE_JOB_MINUTES", "20"))
     queue_cancellation_grace_seconds: int = int(os.getenv("QUEUE_CANCELLATION_GRACE_SECONDS", "30"))
     mock_fail_stage: str | None = os.getenv("MOCK_FAIL_STAGE") or None
-    ytdlp_bin: str = os.getenv("YTDLP_BIN", "yt-dlp")
-    ytdlp_cookies_file: str | None = os.getenv("YTDLP_COOKIES_FILE") or None
-    ffmpeg_bin: str = os.getenv("FFMPEG_BIN", "ffmpeg")
-    ffprobe_bin: str = os.getenv("FFPROBE_BIN", "ffprobe")
+    douyin_cookies_file: str | None = os.getenv("DOUYIN_COOKIES_FILE") or None
+    douyin_browser_fallback_enabled: bool = (
+        os.getenv("DOUYIN_BROWSER_FALLBACK_ENABLED", "true").lower() == "true"
+    )
+    douyin_browser_fallback_headless: bool = (
+        os.getenv("DOUYIN_BROWSER_FALLBACK_HEADLESS", "true").lower() == "true"
+    )
+    douyin_browser_fallback_timeout_seconds: int = int(
+        os.getenv("DOUYIN_BROWSER_FALLBACK_TIMEOUT_SECONDS", "30")
+    )
+    ytdlp_bin: str = resolve_command_path(os.getenv("YTDLP_BIN", "yt-dlp"))
+    ffmpeg_bin: str = resolve_command_path(os.getenv("FFMPEG_BIN", "ffmpeg"))
+    ffprobe_bin: str = resolve_command_path(os.getenv("FFPROBE_BIN", "ffprobe"))
     max_video_duration_seconds: int = int(os.getenv("MAX_VIDEO_DURATION_SECONDS", "180"))
     max_video_file_mb: int = int(os.getenv("MAX_VIDEO_FILE_MB", "200"))
     stt_provider: str = os.getenv("STT_PROVIDER", "mock")
