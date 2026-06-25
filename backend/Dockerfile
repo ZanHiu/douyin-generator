@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir uv yt-dlp
 COPY backend /app/backend
 
 RUN uv sync --frozen --no-dev
+RUN uv run playwright install chromium
 
 RUN chmod +x /app/backend/scripts/run-api.sh /app/backend/scripts/run-worker.sh
 
