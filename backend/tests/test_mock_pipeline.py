@@ -35,6 +35,11 @@ class FakeVideoResolver:
         return input_path, metadata_path
 
 
+class FailingVideoResolver:
+    def fetch(self, job_id: str, source_url: str) -> tuple[str, str]:
+        raise AssertionError("Resolver should not run when an uploaded source video already exists.")
+
+
 class FakeAudioExtractor:
     def __init__(self, storage: StorageService) -> None:
         self.storage = storage
@@ -205,6 +210,57 @@ def test_mock_pipeline_stops_when_job_is_cancel_requested(
         assert cancelled_job is not None
         assert cancelled_job.status == "cancelled"
         assert cancelled_job.progress == 0
+    finally:
+        object.__setattr__(settings, "stt_provider", original_stt_provider)
+        object.__setattr__(settings, "translation_provider", original_translation_provider)
+        object.__setattr__(settings, "tts_provider", original_tts_provider)
+
+
+def test_mock_pipeline_uses_uploaded_source_without_calling_resolver(
+    db_session: Session,
+    tmp_path,
+) -> None:
+    original_stt_provider = settings.stt_provider
+    original_translation_provider = settings.translation_provider
+    original_tts_provider = settings.tts_provider
+    object.__setattr__(settings, "stt_provider", "mock")
+    object.__setattr__(settings, "translation_provider", "mock")
+    object.__setattr__(settings, "tts_provider", "mock")
+    storage = StorageService(tmp_path, use_db_lookup=False)
+    service = JobService(db_session, storage)
+    try:
+        job = service.create_job(
+            JobCreate.model_construct(
+                source_url="upload://demo.mp4",
+                voice_id="vi_female_01",
+                burn_subtitle=True,
+                mix_original_audio=False,
+            )
+        )
+        input_path = storage.write_bytes(job.id, "input.mp4", b"mock uploaded video")
+        storage.write_json(
+            job.id,
+            "metadata.json",
+            {
+                "source_url": job.source_url,
+                "platform": "upload",
+                "uploaded_filename": "demo.mp4",
+            },
+        )
+        service.attach_artifact(job.id, "input_video_path", input_path)
+
+        MockPipeline(
+            service,
+            storage,
+            video_resolver=FailingVideoResolver(),
+            audio_extractor=FakeAudioExtractor(storage),
+            renderer=FakeRenderer(storage),
+        ).run(job.id)
+
+        completed_job = db_session.get(Job, job.id)
+        assert completed_job is not None
+        assert completed_job.status == "completed"
+        assert completed_job.input_video_path
     finally:
         object.__setattr__(settings, "stt_provider", original_stt_provider)
         object.__setattr__(settings, "translation_provider", original_translation_provider)

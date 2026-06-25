@@ -89,6 +89,8 @@ class JobCreate(BaseModel):
     @classmethod
     def validate_url(cls, value: str) -> str:
         parsed = urlparse(value)
+        if parsed.scheme == "upload" and (parsed.netloc or parsed.path):
+            return value
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("Invalid URL.")
         hostname = (parsed.hostname or "").lower()

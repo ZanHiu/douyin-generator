@@ -92,6 +92,44 @@ def test_list_jobs_returns_recent_jobs(client: TestClient, db_session: Session, 
     assert data["items"][0]["created_at"] >= data["items"][1]["created_at"]
 
 
+def test_create_uploaded_job_persists_input_video_and_enqueues(
+    client: TestClient,
+    db_session: Session,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeTask:
+        id = "upload-task-001"
+
+    def fake_delay(job_id: str) -> FakeTask:
+        return FakeTask()
+
+    monkeypatch.setattr("app.api.jobs.process_job.delay", fake_delay)
+
+    response = client.post(
+        "/api/jobs/upload",
+        files={"source_file": ("demo.mp4", b"fake video bytes", "video/mp4")},
+        data={
+            "voice_id": "vi_female_01",
+            "burn_subtitle": "true",
+            "mix_original_audio": "false",
+        },
+    )
+
+    assert response.status_code == 201
+    job_id = response.json()["job_id"]
+    service = JobService(db_session, StorageService(tmp_path, use_db_lookup=False))
+    job = service.get_job(job_id)
+    assert job is not None
+    assert job.source_url == "upload://demo.mp4"
+    assert job.input_video_path is not None
+    input_path = storage_path = service.storage.resolve_path(job.input_video_path)
+    assert input_path.exists()
+    assert input_path.read_bytes() == b"fake video bytes"
+    metadata_path = service.storage.job_dir(job_id) / "metadata.json"
+    assert metadata_path.exists()
+
+
 def test_list_jobs_supports_pagination_and_filters(
     client: TestClient,
     db_session: Session,

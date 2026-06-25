@@ -41,7 +41,18 @@ class MockPipeline:
         self._check_cancel(job_id)
 
         self._stage(job_id, "fetching_video", 10, "Downloading source video")
-        input_video_path, metadata_path = self.video_resolver.fetch(job_id, job.source_url)
+        if job.input_video_path:
+            input_video_path = str(self.storage.resolve_path(job.input_video_path))
+            metadata_path = str(self.storage.job_dir(job_id) / "metadata.json")
+            self.jobs.log(
+                job_id,
+                "info",
+                "fetching_video",
+                "Using uploaded source video",
+                {"input_video_path": input_video_path},
+            )
+        else:
+            input_video_path, metadata_path = self.video_resolver.fetch(job_id, job.source_url)
         self._check_cancel(job_id)
         self.jobs.attach_artifact(job_id, "input_video_path", input_video_path)
         self.jobs.log(

@@ -40,6 +40,13 @@ export interface JobCreateRequest {
   mix_original_audio: boolean
 }
 
+export interface JobUploadRequest {
+  source_file: File
+  voice_id: string
+  burn_subtitle: boolean
+  mix_original_audio: boolean
+}
+
 export interface JobCreateResponse {
   job_id: string
   status: JobStatus

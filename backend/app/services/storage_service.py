@@ -46,6 +46,10 @@ class StorageService:
         path = self._write_text_to_dir(self.job_dir(job_id), filename, content)
         return self.sync_file(path) or path
 
+    def write_bytes(self, job_id: str, filename: str, content: bytes) -> str:
+        path = self._write_bytes_to_dir(self.job_dir(job_id), filename, content)
+        return self.sync_file(path) or path
+
     def edit_dir(self, job_id: str, edit_id: str) -> Path:
         key = (job_id, edit_id)
         if key not in self._edit_dirs:
@@ -150,6 +154,13 @@ class StorageService:
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / filename
         path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    @staticmethod
+    def _write_bytes_to_dir(directory: Path, filename: str, content: bytes) -> str:
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / filename
+        path.write_bytes(content)
         return str(path)
 
     def _resolve_job_dir(self, job_id: str) -> Path:

@@ -1,10 +1,13 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_authenticated_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import User
 from app.schemas.job import (
@@ -106,6 +109,70 @@ def create_job(
             mix_original_audio=payload.mix_original_audio,
             settings_payload=user_settings,
         ),
+    )
+    _enqueue_job(service, job.id)
+    return JobCreateResponse(job_id=job.id, status=job.status)
+
+
+@router.post("/upload", response_model=JobCreateResponse, status_code=201)
+async def create_uploaded_job(
+    source_file: UploadFile = File(...),
+    voice_id: str = Form("banmai"),
+    burn_subtitle: bool = Form(True),
+    mix_original_audio: bool = Form(False),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_authenticated_user),
+) -> JobCreateResponse:
+    filename = (source_file.filename or "uploaded-video.mp4").strip() or "uploaded-video.mp4"
+    suffix = Path(filename).suffix.lower()
+    if suffix not in {".mp4", ".mov", ".mkv", ".webm"}:
+        raise HTTPException(status_code=422, detail="Only MP4, MOV, MKV, and WebM uploads are supported.")
+
+    content = await source_file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+
+    max_bytes = settings.max_video_file_mb * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Uploaded file is too large. This MVP supports up to {settings.max_video_file_mb} MB.",
+        )
+
+    service = JobService(db)
+    user_settings = UserSettingsService.get_user_settings(user)
+    job = service.create_job(
+        JobCreate.model_construct(
+            source_url=f"upload://{filename}",
+            voice_id=voice_id,
+            burn_subtitle=burn_subtitle,
+            mix_original_audio=mix_original_audio,
+        ),
+        initial_render_config=UserSettingsService.build_job_render_defaults(
+            burn_subtitle=burn_subtitle,
+            mix_original_audio=mix_original_audio,
+            settings_payload=user_settings,
+        ),
+    )
+
+    input_video_path = service.storage.write_bytes(job.id, f"input{suffix}", content)
+    service.attach_artifact(job.id, "input_video_path", input_video_path)
+    service.storage.write_json(
+        job.id,
+        "metadata.json",
+        {
+            "source_url": job.source_url,
+            "platform": "upload",
+            "uploaded_filename": filename,
+            "uploaded_size_bytes": len(content),
+        },
+    )
+    service.log(
+        job.id,
+        "info",
+        "created",
+        "Uploaded source video attached",
+        {"filename": filename, "size_bytes": len(content)},
     )
     _enqueue_job(service, job.id)
     return JobCreateResponse(job_id=job.id, status=job.status)

@@ -15,6 +15,7 @@ import type {
   JobLogItem,
   JobStatusResponse
   ,LoginRequest
+  ,JobUploadRequest
   ,UserSettings
   ,UserSettingsResponse
 } from './types'
@@ -31,13 +32,16 @@ function toApiUrl(path: string): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData
+  const headers = new Headers(init?.headers)
+  if (!isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
   const response = await fetch(toApiUrl(path), {
+    ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers
-    },
-    ...init
+    headers,
   })
 
   if (!response.ok) {
@@ -95,6 +99,18 @@ export function createJob(payload: JobCreateRequest): Promise<JobCreateResponse>
   return request<JobCreateResponse>('/api/jobs', {
     method: 'POST',
     body: JSON.stringify(payload)
+  })
+}
+
+export function createUploadedJob(payload: JobUploadRequest): Promise<JobCreateResponse> {
+  const formData = new FormData()
+  formData.set('source_file', payload.source_file)
+  formData.set('voice_id', payload.voice_id)
+  formData.set('burn_subtitle', String(payload.burn_subtitle))
+  formData.set('mix_original_audio', String(payload.mix_original_audio))
+  return request<JobCreateResponse>('/api/jobs/upload', {
+    method: 'POST',
+    body: formData
   })
 }
 

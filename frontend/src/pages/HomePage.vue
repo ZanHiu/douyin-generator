@@ -2,13 +2,16 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRouter } from 'vue-router'
-import { createJob, getMySettings, listJobs } from '../lib/api'
+import { createJob, createUploadedJob, getMySettings, listJobs } from '../lib/api'
 import type { JobListItem } from '../lib/types'
 import { voiceOptions } from '../lib/voices'
 
 const router = useRouter()
 
+const sourceMode = ref<'url' | 'upload'>('url')
 const sourceUrl = ref('')
+const sourceFile = ref<File | null>(null)
+const isDraggingFile = ref(false)
 const voiceId = ref('banmai')
 const isVoiceMenuOpen = ref(false)
 const burnSubtitle = ref(true)
@@ -65,25 +68,68 @@ async function loadDefaults() {
 async function submitJob() {
   errorMessage.value = ''
 
-  if (!sourceUrl.value.trim()) {
-    errorMessage.value = 'Enter a Douyin or TikTok URL.'
-    return
-  }
-
   isSubmitting.value = true
   try {
-    const job = await createJob({
-      source_url: sourceUrl.value.trim(),
-      voice_id: voiceId.value,
-      burn_subtitle: burnSubtitle.value,
-      mix_original_audio: mixOriginalAudio.value
-    })
+    let job
+    if (sourceMode.value === 'upload') {
+      if (!sourceFile.value) {
+        errorMessage.value = 'Choose a local video file.'
+        return
+      }
+      job = await createUploadedJob({
+        source_file: sourceFile.value,
+        voice_id: voiceId.value,
+        burn_subtitle: burnSubtitle.value,
+        mix_original_audio: mixOriginalAudio.value
+      })
+    } else {
+      if (!sourceUrl.value.trim()) {
+        errorMessage.value = 'Enter a Douyin or TikTok URL.'
+        return
+      }
+      job = await createJob({
+        source_url: sourceUrl.value.trim(),
+        voice_id: voiceId.value,
+        burn_subtitle: burnSubtitle.value,
+        mix_original_audio: mixOriginalAudio.value
+      })
+    }
     await loadRecentJobs()
     await router.push(`/jobs/${job.job_id}`)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Could not create job.'
   } finally {
     isSubmitting.value = false
+  }
+}
+
+function handleSourceFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  sourceFile.value = target.files?.[0] ?? null
+}
+
+function setSourceMode(mode: 'url' | 'upload') {
+  sourceMode.value = mode
+  errorMessage.value = ''
+}
+
+function handleFileDragOver(event: DragEvent) {
+  event.preventDefault()
+  isDraggingFile.value = true
+}
+
+function handleFileDragLeave(event: DragEvent) {
+  event.preventDefault()
+  isDraggingFile.value = false
+}
+
+function handleFileDrop(event: DragEvent) {
+  event.preventDefault()
+  isDraggingFile.value = false
+
+  const file = event.dataTransfer?.files?.[0] ?? null
+  if (file) {
+    sourceFile.value = file
   }
 }
 
@@ -114,7 +160,39 @@ onMounted(async () => {
             </div>
           </div>
 
-          <label class="field">
+          <div class="source-mode-toggle" role="tablist" aria-label="Video source mode">
+            <button
+              :class="['source-mode-button', { 'source-mode-button-active': sourceMode === 'url' }]"
+              type="button"
+              role="tab"
+              :aria-selected="sourceMode === 'url'"
+              @click="setSourceMode('url')"
+            >
+              Link
+            </button>
+            <button
+              :class="[
+                'source-mode-button',
+                { 'source-mode-button-active': sourceMode === 'upload' }
+              ]"
+              type="button"
+              role="tab"
+              :aria-selected="sourceMode === 'upload'"
+              @click="setSourceMode('upload')"
+            >
+              Upload
+            </button>
+          </div>
+
+          <p class="source-mode-description">
+            {{
+              sourceMode === 'url'
+                ? 'Fetch from a Douyin or TikTok URL.'
+                : 'Use a local MP4, MOV, MKV, or WebM file.'
+            }}
+          </p>
+
+          <label v-if="sourceMode === 'url'" class="field">
             <span>Video URL</span>
             <input
               v-model="sourceUrl"
@@ -122,6 +200,31 @@ onMounted(async () => {
               placeholder="https://www.douyin.com/..."
               autocomplete="off"
             />
+          </label>
+
+          <label v-else class="field">
+            <span>Video file</span>
+            <input
+              class="file-input-hidden"
+              type="file"
+              accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/webm"
+              @change="handleSourceFileChange"
+            />
+            <span
+              :class="['upload-dropzone', { 'upload-dropzone-dragging': isDraggingFile }]"
+              @dragover="handleFileDragOver"
+              @dragleave="handleFileDragLeave"
+              @drop="handleFileDrop"
+            >
+              <strong>{{ sourceFile ? sourceFile.name : 'Drop video here or click to browse' }}</strong>
+              <small>
+                {{
+                  sourceFile
+                    ? 'File selected for upload.'
+                    : 'Accepts MP4, MOV, MKV, and WebM files.'
+                }}
+              </small>
+            </span>
           </label>
 
           <div class="field">

@@ -55,10 +55,25 @@ Recommended production path:
 Managed low-cost alternative:
 
 - `Netlify` for the frontend
-- `Northflank` for API + worker
+- `Northflank` for API
 - `Supabase` for PostgreSQL
 - `Upstash` for Redis
 - `Cloudflare R2` for object storage
+
+Recommended practical Douyin setup:
+
+- `frontend` local or deployed
+- `api` on `Northflank`
+- `worker` local on your machine
+- `Supabase` for PostgreSQL
+- `Upstash` for Redis
+- `Cloudflare R2` for object storage
+
+Why:
+
+- Douyin metadata/download requests are more likely to be blocked from cloud datacenter IPs
+- running the worker locally lets `yt-dlp` use your local network environment directly
+- the rest of the system can stay managed in the cloud
 
 Quick start:
 
@@ -218,6 +233,59 @@ Open:
 ```text
 http://localhost:5173
 ```
+
+## Hybrid Remote API + Local Worker
+
+This is the recommended operating mode when Douyin blocks cloud worker IPs.
+
+Keep:
+
+- API remote on `Northflank`
+- PostgreSQL remote on `Supabase`
+- Redis remote on `Upstash`
+- object storage remote on `Cloudflare R2`
+
+Run locally:
+
+- `Celery worker`
+
+How to wire it:
+
+1. Put your cloud values into local `.env`:
+
+```env
+DATABASE_URL=postgresql+psycopg://<supabase-connection>
+REDIS_URL=rediss://<upstash-connection>?ssl_cert_reqs=required
+STORAGE_BACKEND=r2
+STORAGE_BUCKET=<r2-bucket>
+STORAGE_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+STORAGE_ACCESS_KEY=<r2-access-key>
+STORAGE_SECRET_KEY=<r2-secret-key>
+STORAGE_PREFIX=production
+```
+
+2. Keep the same provider settings in local `.env` that production uses, for example:
+
+```env
+STT_PROVIDER=faster_whisper
+TRANSLATION_PROVIDER=nine_router
+TTS_PROVIDER=fpt_ai
+```
+
+3. Start only the local worker:
+
+```powershell
+cd backend
+uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=2
+```
+
+4. Do not run the worker on Northflank while testing this mode.
+
+Result:
+
+- frontend talks to remote API
+- remote API enqueues jobs in remote Redis
+- local worker consumes those jobs and uploads artifacts to R2
 
 ## Sprint 001 Behavior
 
