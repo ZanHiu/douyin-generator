@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -11,7 +9,6 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models import User
 from app.schemas.job import (
-    BlurMaskItem,
     JobCreate,
     JobCreateResponse,
     JobEditorStateResponse,
@@ -28,15 +25,18 @@ from app.schemas.job import (
     JobSort,
     JobStatus,
     JobStatusResponse,
-    JobSubtitleSegment,
-    OverlayItem,
+)
+from app.services.edit_render_service import (
+    get_edit_render_error,
+    get_edit_render_status,
+    prepare_edit_render_request,
+    strip_edit_runtime_metadata,
 )
 from app.services.job_service import JobService
 from app.services.subtitle_service import SubtitleService
 from app.services.user_settings_service import UserSettingsService
-from app.services.video_renderer_service import VideoRendererService
 from app.workers.celery_app import celery_app, recover_queue_state
-from app.workers.tasks import process_job
+from app.workers.tasks import process_job, render_job_edit as render_job_edit_task
 
 router = APIRouter(dependencies=[Depends(require_authenticated_user)])
 
@@ -51,47 +51,6 @@ def _resolve_stored_path(service: JobService, stored_path: str | None) -> str | 
     if not stored_path:
         return None
     return str(service.storage.resolve_path(stored_path))
-
-
-def _normalize_blur_masks(payload: JobEditRenderRequest) -> list[BlurMaskItem]:
-    if payload.blur_masks is not None:
-        return [item for item in payload.blur_masks if item.enabled]
-
-    if not payload.blur_original_subtitles:
-        return []
-
-    return [
-        BlurMaskItem(
-            id="blur-1",
-            enabled=True,
-            x_ratio=payload.blur_x_ratio,
-            y_ratio=payload.blur_y_ratio,
-            width_ratio=payload.blur_width_ratio,
-            height_ratio=payload.blur_height_ratio,
-            strength=payload.blur_strength,
-        )
-    ]
-
-
-def _normalize_overlays(payload: JobEditRenderRequest) -> list[OverlayItem]:
-    if payload.overlays is not None:
-        return [item for item in payload.overlays if item.enabled and item.text]
-
-    if not payload.overlay_enabled or not payload.overlay_text:
-        return []
-
-    return [
-        OverlayItem(
-            id="overlay-1",
-            enabled=True,
-            text=payload.overlay_text,
-            position=payload.overlay_position,
-            x_ratio=payload.overlay_x_ratio,
-            y_ratio=payload.overlay_y_ratio,
-            font_size=payload.overlay_font_size,
-            text_color=payload.overlay_text_color,
-        )
-    ]
 
 
 @router.post("", response_model=JobCreateResponse, status_code=201)
@@ -334,8 +293,10 @@ def get_job_edit_detail(job_id: str, edit_id: str, db: Session = Depends(get_db)
         job_id=edit.job_id,
         version_number=edit.version_number,
         tool_summary=edit.tool_summary,
-        config=edit.config_json or {},
+        config=strip_edit_runtime_metadata(edit.config_json),
         result_url=edit.result_url,
+        render_status=get_edit_render_status(edit.config_json),
+        error_message=get_edit_render_error(edit.config_json),
         created_at=edit.created_at,
         updated_at=edit.updated_at,
     )
@@ -415,213 +376,6 @@ def download_subtitles(job_id: str, db: Session = Depends(get_db)) -> FileRespon
     return FileResponse(path, filename=f"{job_id}_vi.srt", media_type="application/x-subrip")
 
 
-def _render_job_edit(
-    job_id: str,
-    payload: JobEditRenderRequest,
-    overwrite_edit_id: str | None,
-    db: Session = Depends(get_db),
-) -> JobEditRenderResponse:
-    service = JobService(db)
-    job = service.get_job(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job.status != "completed":
-        raise HTTPException(status_code=409, detail="Only completed jobs can be edited")
-    if not job.input_video_path or not job.tts_audio_path or not job.subtitle_path:
-        raise HTTPException(status_code=409, detail="Required render artifacts are missing")
-
-    input_video_path = _resolve_stored_path(service, job.input_video_path)
-    tts_audio_path = _resolve_stored_path(service, job.tts_audio_path)
-    subtitle_path = _resolve_stored_path(service, job.subtitle_path)
-    original_audio_path = _resolve_stored_path(service, job.audio_path)
-    transcript_vi_path = _resolve_stored_path(service, job.transcript_vi_path)
-    assert input_video_path is not None
-    assert tts_audio_path is not None
-    assert subtitle_path is not None
-
-    edit_id = overwrite_edit_id or str(uuid4())
-    subtitle_service = SubtitleService()
-    original_segments = subtitle_service.load_segments(transcript_vi_path) if transcript_vi_path else []
-    render_subtitle_path = subtitle_path
-
-    if payload.subtitle_segments:
-        edited_segments = [segment.model_dump() for segment in payload.subtitle_segments]
-        subtitle_service.write_edit_segments_json(job_id, edit_id, "transcript_vi.json", edited_segments)
-        render_subtitle_path = subtitle_service.write_edit_srt_from_segments(
-            job_id,
-            edit_id,
-            "subtitles_vi.srt",
-            edited_segments,
-        )
-
-    blur_masks = _normalize_blur_masks(payload)
-    overlays = _normalize_overlays(payload)
-
-    output_path = VideoRendererService().render_edit(
-        job_id,
-        edit_id,
-        input_video_path,
-        tts_audio_path,
-        render_subtitle_path,
-        original_audio_path=original_audio_path,
-        output_filename="output_vi_edit.mp4",
-        trim_start_seconds=payload.trim_start_seconds,
-        trim_end_seconds=payload.trim_end_seconds,
-        playback_speed=payload.playback_speed,
-        blur_original_subtitles=payload.blur_original_subtitles,
-        blur_x_ratio=payload.blur_x_ratio,
-        blur_y_ratio=payload.blur_y_ratio,
-        blur_width_ratio=payload.blur_width_ratio,
-        blur_height_ratio=payload.blur_height_ratio,
-        blur_strength=payload.blur_strength,
-        blur_masks=[item.model_dump() for item in blur_masks],
-        voice_volume_percent=payload.voice_volume_percent,
-        original_volume_percent=payload.original_volume_percent,
-        burn_audio=payload.burn_audio,
-        burn_original_audio=payload.burn_original_audio,
-        burn_subtitle=payload.burn_subtitle,
-        subtitle_font_size=payload.subtitle_font_size,
-        subtitle_position=payload.subtitle_position,
-        subtitle_text_color=payload.subtitle_text_color,
-        overlay_enabled=payload.overlay_enabled,
-        overlay_text=payload.overlay_text,
-        overlay_position=payload.overlay_position,
-        overlay_x_ratio=payload.overlay_x_ratio,
-        overlay_y_ratio=payload.overlay_y_ratio,
-        overlay_font_size=payload.overlay_font_size,
-        overlay_text_color=payload.overlay_text_color,
-        overlays=[item.model_dump() for item in overlays],
-    )
-
-    result_url = f"/api/jobs/{job_id}/edits/{edit_id}/download"
-    tool_summary = _build_edit_tool_summary(
-        payload,
-        original_segments,
-        default_burn_original_audio=bool(job.mix_original_audio),
-    )
-    payload_json = payload.model_dump()
-    payload_json["blur_masks"] = [item.model_dump() for item in blur_masks]
-    payload_json["overlays"] = [item.model_dump() for item in overlays]
-    if overwrite_edit_id:
-        existing_edit = service.get_edit(overwrite_edit_id)
-        if existing_edit is None or existing_edit.job_id != job_id or existing_edit.is_draft:
-            raise HTTPException(status_code=404, detail="Saved edit not found")
-        service.update_edit(
-            overwrite_edit_id,
-            tool_summary=tool_summary,
-            config_json=payload_json,
-            output_video_path=output_path,
-            result_url=result_url,
-        )
-    else:
-        service.create_edit(
-            job_id,
-            edit_id=edit_id,
-            tool_summary=tool_summary,
-            config_json=payload_json,
-            output_video_path=output_path,
-            result_url=result_url,
-        )
-    service.log(
-        job_id,
-        "info",
-        "editing",
-        "Edited video rendered",
-        {
-            "edit_id": edit_id,
-            "overwrite_edit_id": overwrite_edit_id,
-            "output_video_path": output_path,
-            "tool_summary": tool_summary,
-            **payload_json,
-        },
-    )
-    return JobEditRenderResponse(job_id=job_id, edit_id=edit_id, result_url=result_url)
-
-
-def _build_edit_tool_summary(
-    payload: JobEditRenderRequest,
-    original_segments: list[dict] | None = None,
-    *,
-    default_burn_original_audio: bool = True,
-) -> str:
-    groups: list[tuple[str, list[str]]] = []
-    blur_masks = _normalize_blur_masks(payload)
-    overlays = _normalize_overlays(payload)
-
-    video_tools: list[str] = []
-    if payload.trim_start_seconds > 0 or payload.trim_end_seconds is not None or abs(payload.playback_speed - 1.0) > 0.001:
-        video_tools.append("Trim/Speed")
-    if blur_masks:
-        video_tools.append("Blur/Mask")
-    if overlays:
-        video_tools.append("Overlay")
-    if video_tools:
-        groups.append(("Video", list(dict.fromkeys(video_tools))))
-
-    audio_tools: list[str] = []
-    if payload.voice_volume_percent != 100:
-        audio_tools.append("Voice volume")
-    if payload.original_volume_percent != 35:
-        audio_tools.append("Original volume")
-    if payload.burn_audio is not True:
-        audio_tools.append("Burn voice")
-    if payload.burn_original_audio is not default_burn_original_audio:
-        audio_tools.append("Burn original voice")
-    if audio_tools:
-        groups.append(("Audio", list(dict.fromkeys(audio_tools))))
-
-    caption_tools: list[str] = []
-    if payload.burn_subtitle is not True:
-        caption_tools.append("Burn subtitle")
-    if (
-        payload.subtitle_font_size != 18
-        or payload.subtitle_position != "bottom"
-        or payload.subtitle_text_color != "#FFFFFF"
-    ):
-        caption_tools.append("Style/Position")
-    if payload.subtitle_segments and original_segments:
-        text_changed, timing_changed = _detect_subtitle_segment_changes(payload.subtitle_segments, original_segments)
-        if text_changed:
-            caption_tools.append("Caption editor")
-        if timing_changed:
-            caption_tools.append("Timing editor")
-    if caption_tools:
-        groups.append(("Captions", list(dict.fromkeys(caption_tools))))
-
-    if not groups:
-        return "Editor :: Preview render"
-
-    group_label = " + ".join(label for label, _ in groups)
-    options: list[str] = []
-    for _, tools in groups:
-        options.extend(tools)
-    return f"{group_label} :: {' + '.join(dict.fromkeys(options))}"
-
-
-def _detect_subtitle_segment_changes(
-    edited_segments: list[JobSubtitleSegment],
-    original_segments: list[dict],
-) -> tuple[bool, bool]:
-    original_by_id = {int(segment.get("id", index)): segment for index, segment in enumerate(original_segments)}
-    text_changed = False
-    timing_changed = False
-
-    for segment in edited_segments:
-        original = original_by_id.get(segment.id)
-        if original is None:
-            text_changed = True
-            timing_changed = True
-            continue
-        if str(original.get("text_vi", "")).strip() != segment.text_vi.strip():
-            text_changed = True
-        if abs(float(original.get("start", 0.0)) - segment.start) > 0.0001:
-            timing_changed = True
-        if abs(float(original.get("end", 0.0)) - segment.end) > 0.0001:
-            timing_changed = True
-
-    return text_changed, timing_changed
-
-
 def _split_edit_tool_summary(summary: str) -> tuple[str, str]:
     parts = summary.split("::", 1)
     if len(parts) == 2:
@@ -643,7 +397,36 @@ def render_job_edit(
     overwrite_edit_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> JobEditRenderResponse:
-    return _render_job_edit(job_id, payload, overwrite_edit_id, db)
+    service = JobService(db)
+    try:
+        edit_id, result_url = prepare_edit_render_request(
+            service,
+            job_id=job_id,
+            payload=payload,
+            overwrite_edit_id=overwrite_edit_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        detail = exc.message if hasattr(exc, "message") else str(exc)
+        lowered = detail.lower()
+        if "job not found" in lowered or "saved edit not found" in lowered:
+            status_code = 404
+        elif "completed jobs can be edited" in lowered or "artifacts are missing" in lowered:
+            status_code = 409
+        else:
+            status_code = 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+
+    task = render_job_edit_task.delay(job_id, edit_id)
+    service.log(job_id, "info", "editing", "Edit render task queued", {"edit_id": edit_id, "task_id": task.id})
+    return JobEditRenderResponse(
+        job_id=job_id,
+        edit_id=edit_id,
+        result_url=result_url,
+        render_status="queued",
+        error_message=None,
+    )
 
 
 @router.post("/{job_id}/edits/blur", response_model=JobEditRenderResponse)
@@ -652,7 +435,7 @@ def render_blurred_subtitles(
     payload: JobEditRenderRequest,
     db: Session = Depends(get_db),
 ) -> JobEditRenderResponse:
-    return _render_job_edit(job_id, payload, db)
+    return render_job_edit(job_id, payload, None, db)
 
 
 @router.get("/{job_id}/edits/{edit_id}/download")

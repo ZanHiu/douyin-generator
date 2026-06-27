@@ -8,6 +8,7 @@ JobStatus = Literal["queued", "processing", "cancelling", "completed", "failed",
 JobSort = Literal["newest", "oldest", "progress"]
 JobEditSort = Literal["newest", "oldest"]
 JobEditToolFilter = Literal["all", "video", "audio", "captions"]
+JobEditRenderStatus = Literal["queued", "processing", "completed", "failed"]
 OverlayPosition = Literal[
     "top_left",
     "top_center",
@@ -193,7 +194,9 @@ class JobEditRenderRequest(BaseModel):
 class JobEditRenderResponse(BaseModel):
     job_id: str
     edit_id: str
-    result_url: str
+    result_url: str | None
+    render_status: JobEditRenderStatus
+    error_message: str | None = None
 
 
 class JobEditorStateResponse(BaseModel):
@@ -208,7 +211,9 @@ class JobEditDetailResponse(BaseModel):
     version_number: int | None = None
     tool_summary: str
     config: dict
-    result_url: str
+    result_url: str | None
+    render_status: JobEditRenderStatus = "completed"
+    error_message: str | None = None
     created_at: datetime | None
     updated_at: datetime | None
 

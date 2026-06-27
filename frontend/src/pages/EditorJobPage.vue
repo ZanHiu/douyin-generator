@@ -101,6 +101,7 @@ const isLoading = ref(false)
 const isRendering = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const renderStatusMessage = ref('')
 const previewFrameRef = ref<HTMLElement | null>(null)
 const previewVideoRef = ref<HTMLVideoElement | null>(null)
 const blurTargetRefs = ref<Record<string, HTMLElement | null>>({})
@@ -297,6 +298,9 @@ const activeOverlayTextColor = computed({
 async function loadEditorWorkspace() {
   isLoading.value = true
   try {
+    errorMessage.value = ''
+    successMessage.value = ''
+    renderStatusMessage.value = ''
     const [jobResponse, editorState, editDetail] = await Promise.all([
       getJob(jobId.value),
       getJobEditorState(jobId.value),
@@ -310,15 +314,26 @@ async function loadEditorWorkspace() {
       const savedConfig = normalizeEditorConfig(editDetail.config, defaultSegments)
       setEditorRefsFromConfig(savedConfig)
       baselineConfig.value = cloneEditorConfig(savedConfig)
-      editedResultUrl.value = resolveApiAssetUrl(`${editDetail.result_url}?t=${Date.now()}`)
+      editedResultUrl.value = editDetail.render_status === 'completed' && editDetail.result_url
+        ? resolveApiAssetUrl(`${editDetail.result_url}?t=${Date.now()}`)
+        : ''
+      if (editDetail.render_status === 'queued' || editDetail.render_status === 'processing') {
+        renderStatusMessage.value = 'Edited video is rendering...'
+        void pollRenderedEdit(editDetail.edit_id).catch((error) => {
+          renderStatusMessage.value = ''
+          errorMessage.value = error instanceof Error ? error.message : 'Could not render edited video.'
+        })
+      } else if (editDetail.render_status === 'failed') {
+        renderStatusMessage.value = ''
+        errorMessage.value = editDetail.error_message || 'Could not render edited video.'
+      } else {
+        renderStatusMessage.value = ''
+      }
     } else {
       setEditorRefsFromConfig(generatedConfig)
       baselineConfig.value = cloneEditorConfig(generatedConfig)
       editedResultUrl.value = ''
     }
-
-    errorMessage.value = ''
-    successMessage.value = ''
     await nextTick()
     updatePreviewMetrics()
     syncPreviewState()
@@ -336,14 +351,13 @@ async function renderEdit() {
 
   errorMessage.value = ''
   successMessage.value = ''
+  renderStatusMessage.value = ''
   isRendering.value = true
   try {
     const payload = cloneEditorConfig(currentConfig.value)
     const response = await renderEditedVideo(jobId.value, payload, {
       overwriteEditId: editorSource.value === 'history' ? editId.value || null : null,
     })
-    baselineConfig.value = cloneEditorConfig(payload)
-    editedResultUrl.value = resolveApiAssetUrl(`${response.result_url}?t=${Date.now()}`)
     void router.replace({
       name: 'editor-job',
       params: { jobId: jobId.value },
@@ -352,12 +366,44 @@ async function renderEdit() {
         source: editorSource.value,
       },
     })
-    successMessage.value = 'Edited video rendered.'
+    renderStatusMessage.value = 'Edited video is rendering...'
+    await pollRenderedEdit(response.edit_id, payload)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Could not render edited video.'
   } finally {
     isRendering.value = false
   }
+}
+
+async function pollRenderedEdit(editIdToWatch: string, expectedConfig?: EditorConfig) {
+  const startedAt = Date.now()
+  const timeoutMs = 5 * 60 * 1000
+  const intervalMs = 2500
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const detail = await getJobEditDetail(jobId.value, editIdToWatch)
+    if (detail.render_status === 'completed' && detail.result_url) {
+      renderStatusMessage.value = ''
+      successMessage.value = 'Edited video rendered.'
+      editedResultUrl.value = resolveApiAssetUrl(`${detail.result_url}?t=${Date.now()}`)
+      if (expectedConfig) {
+        baselineConfig.value = cloneEditorConfig(expectedConfig)
+      }
+      return
+    }
+    if (detail.render_status === 'failed') {
+      renderStatusMessage.value = ''
+      throw new Error(detail.error_message || 'Could not render edited video.')
+    }
+    await delay(intervalMs)
+  }
+
+  renderStatusMessage.value = ''
+  throw new Error('Timed out while waiting for edited video render.')
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function setTrimEndFromEvent(event: Event) {
@@ -1120,7 +1166,8 @@ onBeforeUnmount(() => {
     </div>
 
     <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-    <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
+    <p v-else-if="renderStatusMessage" class="success-message">{{ renderStatusMessage }}</p>
+    <p v-else-if="successMessage" class="success-message">{{ successMessage }}</p>
     <p v-if="isLoading" class="empty-state large-empty-state">Loading editor workspace...</p>
 
     <div class="editor-workspace" v-else-if="job">

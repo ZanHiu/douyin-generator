@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import asc, desc, func, or_
 from sqlalchemy.orm import Query, Session
@@ -134,6 +135,62 @@ class JobService:
         edit = self.get_edit(edit_id)
         if edit is None:
             raise ValueError(f"Edit not found: {edit_id}")
+        edit.tool_summary = tool_summary
+        edit.config_json = config_json
+        edit.output_video_path = self.storage.sync_file(
+            self._normalize_storage_value("output_video_path", output_video_path)
+        )
+        edit.result_url = result_url
+        self.db.commit()
+        self.db.refresh(edit)
+        self._write_edit_manifest(edit)
+        return edit
+
+    def update_edit_state(
+        self,
+        edit_id: str,
+        *,
+        tool_summary: str | None = None,
+        config_json: dict | None = None,
+        output_video_path: str | None | object = None,
+        result_url: str | None = None,
+        is_draft: bool | None = None,
+    ) -> JobEdit:
+        edit = self.get_edit(edit_id)
+        if edit is None:
+            raise ValueError(f"Edit not found: {edit_id}")
+        if tool_summary is not None:
+            edit.tool_summary = tool_summary
+        if config_json is not None:
+            edit.config_json = config_json
+        if output_video_path is not None:
+            edit.output_video_path = self.storage.sync_file(
+                self._normalize_storage_value("output_video_path", output_video_path)
+            )
+        if result_url is not None:
+            edit.result_url = result_url
+        if is_draft is not None:
+            edit.is_draft = is_draft
+        self.db.commit()
+        self.db.refresh(edit)
+        self._write_edit_manifest(edit)
+        return edit
+
+    def finalize_edit(
+        self,
+        edit_id: str,
+        *,
+        tool_summary: str,
+        config_json: dict,
+        output_video_path: str,
+        result_url: str,
+    ) -> JobEdit:
+        edit = self.get_edit(edit_id)
+        if edit is None:
+            raise ValueError(f"Edit not found: {edit_id}")
+        if edit.is_draft:
+            edit.version_number = self._next_edit_version(edit.job_id)
+        edit.is_draft = False
         edit.tool_summary = tool_summary
         edit.config_json = config_json
         edit.output_video_path = self.storage.sync_file(

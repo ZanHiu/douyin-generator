@@ -128,7 +128,9 @@ export interface JobSubtitleSegment {
 export interface JobEditRenderResponse {
   job_id: string
   edit_id: string
-  result_url: string
+  result_url: string | null
+  render_status: 'queued' | 'processing' | 'completed' | 'failed'
+  error_message: string | null
 }
 
 export interface JobEditorStateResponse {
@@ -143,7 +145,9 @@ export interface JobEditDetailResponse {
   version_number: number | null
   tool_summary: string
   config: Record<string, unknown>
-  result_url: string
+  result_url: string | null
+  render_status: 'queued' | 'processing' | 'completed' | 'failed'
+  error_message: string | null
   created_at: string | null
   updated_at: string | null
 }
