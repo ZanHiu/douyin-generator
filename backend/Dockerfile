@@ -10,7 +10,7 @@ WORKDIR /app/backend
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates xz-utils \
     && mkdir -p /tmp/ffmpeg \
-    && curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-git-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz \
+    && curl -fsSL https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o /tmp/ffmpeg.tar.xz \
     && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg --strip-components=1 \
     && install -m 0755 /tmp/ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
     && install -m 0755 /tmp/ffmpeg/ffprobe /usr/local/bin/ffprobe \
