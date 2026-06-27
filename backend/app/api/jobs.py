@@ -25,6 +25,7 @@ from app.schemas.job import (
     JobSort,
     JobStatus,
     JobStatusResponse,
+    JobSubtitleSegment,
 )
 from app.services.edit_render_service import (
     get_edit_render_error,
