@@ -6,7 +6,20 @@ from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-load_dotenv(REPO_ROOT / ".env")
+
+def resolve_env_file() -> Path:
+    explicit_path = os.getenv("DOTENV_FILE")
+    if explicit_path:
+        candidate = Path(explicit_path)
+        return candidate if candidate.is_absolute() else REPO_ROOT / candidate
+
+    app_env = (os.getenv("APP_ENV") or "local").strip().lower()
+    if app_env == "production":
+        return REPO_ROOT / ".env.production"
+    return REPO_ROOT / ".env"
+
+
+load_dotenv(resolve_env_file(), override=True)
 
 
 def resolve_from_repo(value: str) -> Path:

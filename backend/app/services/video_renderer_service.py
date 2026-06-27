@@ -878,7 +878,7 @@ class VideoRendererService:
             f"x={x_expr}:"
             f"y={y_expr}:"
             f"fontsize={overlay_font_size}:"
-            f"fontcolor={overlay_text_color}:"
+            f"fontcolor={VideoRendererService._normalize_ffmpeg_color(overlay_text_color)}:"
             "borderw=2:"
             "bordercolor=black:"
             "shadowx=0:"
@@ -963,3 +963,10 @@ class VideoRendererService:
         green = normalized[2:4]
         blue = normalized[4:6]
         return f"&H00{blue}{green}{red}"
+
+    @staticmethod
+    def _normalize_ffmpeg_color(value: str) -> str:
+        normalized = value.strip()
+        if normalized.startswith("#") and len(normalized) == 7:
+            return f"0x{normalized[1:]}"
+        return normalized

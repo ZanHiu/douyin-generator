@@ -218,6 +218,7 @@ Start worker in another terminal:
 cd backend
 uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info --pool=solo
 uv run celery -A app.workers.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=2
+set "APP_ENV=production" && .\.venv\Scripts\celery.exe -A app.workers.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=2
 ```
 
 Install and start frontend:
