@@ -67,6 +67,16 @@ export function resolveApiAssetUrl(path: string | null | undefined): string {
   return toApiUrl(path)
 }
 
+export function resolveApiDownloadUrl(path: string | null | undefined): string {
+  const url = resolveApiAssetUrl(path)
+  if (!url) {
+    return ''
+  }
+
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}download=1`
+}
+
 export function login(payload: LoginRequest): Promise<AuthSessionResponse> {
   return request<AuthSessionResponse>('/api/auth/login', {
     method: 'POST',

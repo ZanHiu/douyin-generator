@@ -22,7 +22,14 @@ import {
 } from 'lucide-vue-next'
 import EditorField from '../components/editor/EditorField.vue'
 import EditorToggleField from '../components/editor/EditorToggleField.vue'
-import { getJob, getJobEditDetail, getJobEditorState, renderEditedVideo, resolveApiAssetUrl } from '../lib/api'
+import {
+  getJob,
+  getJobEditDetail,
+  getJobEditorState,
+  renderEditedVideo,
+  resolveApiAssetUrl,
+  resolveApiDownloadUrl
+} from '../lib/api'
 import type {
   BlurMaskItem,
   JobEditRenderRequest,
@@ -1700,7 +1707,7 @@ onBeforeUnmount(() => {
 
             <a
               class="editor-action-button"
-              :href="previewUrl || undefined"
+              :href="resolveApiDownloadUrl(previewUrl || undefined) || undefined"
               title="Download edited video"
             >
               <Download :size="18" :stroke-width="2.3" aria-hidden="true" />

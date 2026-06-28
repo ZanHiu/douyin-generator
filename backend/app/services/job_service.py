@@ -409,7 +409,7 @@ class JobService:
                 job.updated_at = now
                 self.db.commit()
                 self._write_manifest(job)
-                self.log(job.id, "info", "recovery", "Cleared orphaned queued task reference")
+                self.log(job.id, "warning", "recovery", "Cleared orphaned queued task reference")
                 recovered.append(job.id)
                 continue
 

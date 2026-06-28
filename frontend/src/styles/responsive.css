@@ -33,6 +33,7 @@
 
   .workspace-grid,
   .job-detail-grid,
+  .job-detail-stage,
   .editor-landing-grid {
     grid-template-columns: 1fr;
   }
@@ -65,6 +66,20 @@
 
   .page {
     padding: 28px 20px;
+  }
+
+  .job-detail-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .job-logs-panel {
+    position: static;
+    min-height: 0;
+  }
+
+  .job-logs-panel-body,
+  .job-logs-list {
+    max-height: none;
   }
 
   .editor-placeholder-grid,

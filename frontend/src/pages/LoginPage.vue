@@ -39,106 +39,112 @@ async function submit() {
 
 <template>
   <section class="login-page">
+    <div class="login-orb login-orb-left" aria-hidden="true"></div>
+    <div class="login-orb login-orb-right" aria-hidden="true"></div>
+
     <div class="login-shell">
-      <section class="login-hero">
+      <section class="login-stage">
         <div class="login-brand">
           <span class="brand-mark">DG</span>
           <div>
             <strong>DouyinGenerator</strong>
-            <small>Private production workspace</small>
+            <small>Operator workspace</small>
           </div>
         </div>
 
-        <div class="login-copy">
-          <p class="eyebrow">Protected access</p>
-          <h1>Operator workspace for dubbing, job tracking, and final edit control.</h1>
-          <p>
-            A tighter sign-in flow with clearer hierarchy, trust signals, and workspace context for
-            internal production use.
-          </p>
-        </div>
-
-        <div class="login-highlights">
-          <article class="login-highlight-card">
-            <span class="login-highlight-icon" aria-hidden="true">
-              <ShieldCheck :size="18" :stroke-width="2.2" />
-            </span>
-            <div>
-              <strong>Restricted access</strong>
-              <p>Only approved operator accounts can manage dubbing jobs and edited outputs.</p>
+        <div class="login-panel">
+          <section class="surface login-card">
+            <div class="section-heading login-card-heading">
+              <div class="login-card-copy">
+                <p class="eyebrow">Secure login</p>
+                <h1>Sign in to continue work.</h1>
+                <p>Access dubbing jobs, editor handoff, and rendering defaults from one workspace.</p>
+              </div>
+              <span class="login-card-icon" aria-hidden="true">
+                <LockKeyhole :size="18" :stroke-width="2.2" />
+              </span>
             </div>
-          </article>
 
-          <article class="login-highlight-card">
-            <span class="login-highlight-icon" aria-hidden="true">
-              <Workflow :size="18" :stroke-width="2.2" />
-            </span>
-            <div>
-              <strong>Production workflow</strong>
-              <p>Review queue status, continue edits, and keep rendering defaults consistent.</p>
-            </div>
-          </article>
+            <form class="form-panel" @submit.prevent="submit">
+              <label class="field">
+                <span>Email</span>
+                <input
+                  v-model="email"
+                  type="email"
+                  autocomplete="email"
+                  placeholder="admin@example.com"
+                />
+              </label>
 
-          <article class="login-highlight-card">
-            <span class="login-highlight-icon" aria-hidden="true">
-              <Sparkles :size="18" :stroke-width="2.2" />
-            </span>
-            <div>
-              <strong>Focused interface</strong>
-              <p>Cleaner split layout, stronger emphasis, and faster scanning on desktop and mobile.</p>
-            </div>
-          </article>
-        </div>
-      </section>
+              <label class="field">
+                <span>Password</span>
+                <div class="password-field">
+                  <input
+                    v-model="password"
+                    :type="isPasswordVisible ? 'text' : 'password'"
+                    autocomplete="current-password"
+                    placeholder="********"
+                  />
+                  <button
+                    class="password-toggle"
+                    type="button"
+                    :aria-label="isPasswordVisible ? 'Hide password' : 'Show password'"
+                    :aria-pressed="isPasswordVisible"
+                    @click="isPasswordVisible = !isPasswordVisible"
+                  >
+                    <EyeOff
+                      v-if="isPasswordVisible"
+                      :size="18"
+                      :stroke-width="2.2"
+                      aria-hidden="true"
+                    />
+                    <Eye v-else :size="18" :stroke-width="2.2" aria-hidden="true" />
+                    <span>{{ isPasswordVisible ? 'Hide' : 'Show' }}</span>
+                  </button>
+                </div>
+              </label>
 
-      <section class="surface login-card">
-        <div class="section-heading login-card-heading">
-          <div class="login-card-copy">
-            <p class="eyebrow">Login</p>
-            <h2>Welcome back</h2>
-            <p>Sign in with your operator account to continue.</p>
-          </div>
-          <span class="login-card-icon" aria-hidden="true">
-            <LockKeyhole :size="18" :stroke-width="2.2" />
-          </span>
-        </div>
+              <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-        <form class="form-panel" @submit.prevent="submit">
-          <label class="field">
-            <span>Email</span>
-            <input v-model="email" type="email" autocomplete="email" placeholder="admin@example.com" />
-          </label>
-
-          <label class="field">
-            <span>Password</span>
-            <div class="password-field">
-              <input
-                v-model="password"
-                :type="isPasswordVisible ? 'text' : 'password'"
-                autocomplete="current-password"
-                placeholder="********"
-              />
-              <button
-                class="password-toggle"
-                type="button"
-                :aria-label="isPasswordVisible ? 'Hide password' : 'Show password'"
-                :aria-pressed="isPasswordVisible"
-                @click="isPasswordVisible = !isPasswordVisible"
-              >
-                <EyeOff v-if="isPasswordVisible" :size="18" :stroke-width="2.2" aria-hidden="true" />
-                <Eye v-else :size="18" :stroke-width="2.2" aria-hidden="true" />
-                <span>{{ isPasswordVisible ? 'Hide' : 'Show' }}</span>
+              <button class="primary-button login-submit icon-button" type="submit" :disabled="isSubmitting">
+                <LogIn :size="16" :stroke-width="2.2" aria-hidden="true" />
+                <span>{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</span>
               </button>
-            </div>
-          </label>
+            </form>
+          </section>
 
-          <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+          <aside class="login-context">
+            <article class="login-context-card">
+              <span class="login-context-icon" aria-hidden="true">
+                <ShieldCheck :size="18" :stroke-width="2.2" />
+              </span>
+              <div>
+                <strong>Restricted access</strong>
+                <p>Only approved operator accounts can open the production workspace.</p>
+              </div>
+            </article>
 
-          <button class="primary-button icon-button" type="submit" :disabled="isSubmitting">
-            <LogIn :size="16" :stroke-width="2.2" aria-hidden="true" />
-            <span>{{ isSubmitting ? 'Signing in...' : 'Sign in' }}</span>
-          </button>
-        </form>
+            <article class="login-context-card">
+              <span class="login-context-icon" aria-hidden="true">
+                <Workflow :size="18" :stroke-width="2.2" />
+              </span>
+              <div>
+                <strong>Active workflow</strong>
+                <p>Track jobs, continue editor revisions, and keep delivery settings aligned.</p>
+              </div>
+            </article>
+
+            <article class="login-context-card login-context-card-accent">
+              <span class="login-context-icon" aria-hidden="true">
+                <Sparkles :size="18" :stroke-width="2.2" />
+              </span>
+              <div>
+                <strong>Focused entry point</strong>
+                <p>A cleaner authentication view built to prioritize the form instead of the hero.</p>
+              </div>
+            </article>
+          </aside>
+        </div>
       </section>
     </div>
   </section>

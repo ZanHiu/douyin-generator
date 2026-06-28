@@ -2,6 +2,7 @@ export type JobStatus = 'queued' | 'processing' | 'cancelling' | 'completed' | '
 export type JobSort = 'newest' | 'oldest' | 'progress'
 export type JobEditSort = 'newest' | 'oldest'
 export type JobEditToolFilter = 'all' | 'video' | 'audio' | 'captions'
+export type JobLogLevel = 'debug' | 'info' | 'warning' | 'error'
 
 export interface AuthUser {
   id: string
@@ -223,7 +224,7 @@ export interface JobListParams {
 
 export interface JobLogItem {
   id: string
-  level: string
+  level: JobLogLevel | string
   stage: string | null
   message: string
   data: Record<string, unknown> | null

@@ -265,6 +265,61 @@
   gap: 10px;
 }
 
+.job-detail-stage {
+  display: grid;
+  align-items: start;
+  gap: 20px;
+  grid-template-columns: minmax(0, 820px) minmax(380px, 1fr);
+  justify-content: space-between;
+}
+
+.job-detail-main {
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+}
+
+.output-panel {
+  min-width: 0;
+}
+
+.job-logs-panel {
+  position: sticky;
+  top: 36px;
+  display: block;
+  min-height: min(72vh, 920px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.job-logs-panel-body {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+  max-height: min(72vh, 920px);
+  overflow: hidden;
+  padding: 22px;
+}
+
+.job-logs-panel-body .section-heading {
+  align-items: flex-start;
+}
+
+.job-logs-panel-body .section-heading h2 {
+  line-height: 1.15;
+}
+
+.job-logs-panel-body .section-heading .compact-button {
+  flex: 0 0 auto;
+}
+
+.job-logs-list {
+  max-height: calc(min(72vh, 920px) - 108px);
+  overflow: auto;
+  padding-right: 6px;
+}
+
 .output-stack {
   display: grid;
   gap: 14px;
@@ -609,6 +664,47 @@
 .log-level-info {
   background: #edf7f3;
   color: #1f7a5c;
+}
+
+.log-level-warning {
+  background: #fff7e8;
+  color: #a16207;
+}
+
+.log-level-debug {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.log-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #eef2f6;
+  color: #43515c;
+  font-weight: 800;
+}
+
+.log-stage-neutral {
+  background: #eef2f6;
+  color: #43515c;
+}
+
+.log-stage-accent {
+  background: #edf5ff;
+  color: #2176ae;
+}
+
+.log-stage-success {
+  background: #edf7f3;
+  color: #1f7a5c;
+}
+
+.log-stage-warning {
+  background: #fff7e8;
+  color: #a16207;
 }
 
 .summary-list {

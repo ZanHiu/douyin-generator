@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft, Download, Pencil, RotateCcw, X } from 'lucide-vue-next'
 import JobProgress from '../components/JobProgress.vue'
-import { cancelJob, getJob, getJobLogs, resolveApiAssetUrl, retryJob } from '../lib/api'
+import { cancelJob, getJob, getJobLogs, resolveApiAssetUrl, resolveApiDownloadUrl, retryJob } from '../lib/api'
 import type { JobLogItem, JobStatusResponse } from '../lib/types'
 
 const route = useRoute()
@@ -45,7 +45,8 @@ const progressStoppedAt = computed(() => {
 })
 
 const resultVideoUrl = computed(() => resolveApiAssetUrl(job.value?.result_url))
-const subtitleDownloadUrl = computed(() => resolveApiAssetUrl(job.value?.subtitle_url))
+const resultVideoDownloadUrl = computed(() => resolveApiDownloadUrl(job.value?.result_url))
+const subtitleDownloadUrl = computed(() => resolveApiDownloadUrl(job.value?.subtitle_url))
 
 function clearPolling() {
   if (statusTimer) {
@@ -163,6 +164,45 @@ function formatDate(value: string | null) {
   }).format(new Date(value))
 }
 
+function formatLogLevel(level: string | null) {
+  if (!level) return 'Info'
+  if (level === 'warning') return 'Warning'
+  if (level === 'error') return 'Error'
+  if (level === 'debug') return 'Debug'
+  return 'Info'
+}
+
+function formatStageLabel(stage: string | null) {
+  if (!stage) return 'General'
+
+  const labels: Record<string, string> = {
+    created: 'Created',
+    recovery: 'Recovery',
+    fetching_video: 'Fetch',
+    extracting_audio: 'Audio',
+    transcribing: 'Transcript',
+    translating: 'Translate',
+    generating_subtitles: 'Subtitles',
+    generating_tts: 'Voice',
+    rendering_video: 'Render',
+    editing: 'Edit',
+    cancelling: 'Cancel',
+    completed: 'Complete'
+  }
+
+  return labels[stage] || stage.replace(/_/g, ' ').replace(/\b\w/g, (value) => value.toUpperCase())
+}
+
+function getLogStageTone(stage: string | null) {
+  if (!stage) return 'neutral'
+  if (stage === 'recovery') return 'warning'
+  if (stage === 'completed') return 'success'
+  if (stage === 'cancelling') return 'warning'
+  if (stage === 'editing') return 'accent'
+  if (stage === 'rendering_video') return 'accent'
+  return 'neutral'
+}
+
 onMounted(async () => {
   await loadJob()
   await loadLogs()
@@ -190,44 +230,44 @@ onUnmounted(() => {
 
     <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-    <div class="job-detail-layout">
-      <div v-if="job && (canCancel || canRetry || actionErrorMessage)" class="job-inline-actions">
-        <div class="job-inline-actions-spacer" />
-        <button
-          v-if="canCancel"
-          class="danger-button compact-button icon-button job-action-button"
-          type="button"
-          :disabled="isCancelling"
-          @click="handleCancelJob"
-        >
-          <X :size="16" :stroke-width="2.2" aria-hidden="true" />
-          {{ isCancelling ? 'Cancelling...' : 'Cancel' }}
-        </button>
-        <button
-          v-if="canRetry"
-          class="secondary-button compact-button icon-button job-action-button"
-          type="button"
-          :disabled="isRetrying"
-          @click="handleRetryJob"
-        >
-          <RotateCcw :size="16" :stroke-width="2.2" aria-hidden="true" />
-          {{ isRetrying ? 'Retrying...' : 'Retry' }}
-        </button>
-      </div>
+    <div class="job-detail-stage">
+      <div class="job-detail-main">
+        <div v-if="job && (canCancel || canRetry || actionErrorMessage)" class="job-inline-actions">
+          <div class="job-inline-actions-spacer" />
+          <button
+            v-if="canCancel"
+            class="danger-button compact-button icon-button job-action-button"
+            type="button"
+            :disabled="isCancelling"
+            @click="handleCancelJob"
+          >
+            <X :size="16" :stroke-width="2.2" aria-hidden="true" />
+            {{ isCancelling ? 'Cancelling...' : 'Cancel' }}
+          </button>
+          <button
+            v-if="canRetry"
+            class="secondary-button compact-button icon-button job-action-button"
+            type="button"
+            :disabled="isRetrying"
+            @click="handleRetryJob"
+          >
+            <RotateCcw :size="16" :stroke-width="2.2" aria-hidden="true" />
+            {{ isRetrying ? 'Retrying...' : 'Retry' }}
+          </button>
+        </div>
 
-      <JobProgress
-        v-if="job"
-        :job="job"
-        :started-at="progressStartedAt"
-        :stopped-at="progressStoppedAt"
-      />
+        <JobProgress
+          v-if="job"
+          :job="job"
+          :started-at="progressStartedAt"
+          :stopped-at="progressStoppedAt"
+        />
 
-      <div v-if="actionErrorMessage" class="job-inline-actions">
-        <p v-if="actionErrorMessage" class="error-message">{{ actionErrorMessage }}</p>
-      </div>
+        <div v-if="actionErrorMessage" class="job-inline-actions">
+          <p v-if="actionErrorMessage" class="error-message">{{ actionErrorMessage }}</p>
+        </div>
 
-      <div class="job-detail-grid">
-        <section class="surface">
+        <section class="surface output-panel">
           <div class="section-heading">
             <div>
               <p class="eyebrow">Outputs</p>
@@ -245,11 +285,21 @@ onUnmounted(() => {
                 <Pencil :size="16" :stroke-width="2.2" aria-hidden="true" />
                 Open in Editor
               </RouterLink>
-              <a v-if="subtitleDownloadUrl" class="secondary-button icon-button" :href="subtitleDownloadUrl">
+              <a
+                v-if="subtitleDownloadUrl"
+                class="secondary-button icon-button"
+                :href="subtitleDownloadUrl"
+                download
+              >
                 <Download :size="16" :stroke-width="2.2" aria-hidden="true" />
                 Download subtitles
               </a>
-              <a v-if="resultVideoUrl" class="primary-button icon-button" :href="resultVideoUrl">
+              <a
+                v-if="resultVideoDownloadUrl"
+                class="primary-button icon-button"
+                :href="resultVideoDownloadUrl"
+                download
+              >
                 <Download :size="16" :stroke-width="2.2" aria-hidden="true" />
                 Download final video
               </a>
@@ -259,8 +309,10 @@ onUnmounted(() => {
             Downloads appear here when rendering is complete.
           </p>
         </section>
+      </div>
 
-        <section class="surface">
+      <aside class="surface job-logs-panel">
+        <div class="job-logs-panel-body">
           <div class="section-heading">
             <div>
               <p class="eyebrow">Activity</p>
@@ -273,11 +325,13 @@ onUnmounted(() => {
 
           <p v-if="logsErrorMessage" class="error-message">{{ logsErrorMessage }}</p>
 
-          <div v-if="logs.length" class="log-list">
+          <div v-if="logs.length" class="log-list job-logs-list">
             <article v-for="log in logs" :key="log.id" class="log-row">
               <div class="log-meta">
-                <span :class="['log-level', `log-level-${log.level}`]">{{ log.level }}</span>
-                <span>{{ log.stage || 'none' }}</span>
+                <span :class="['log-level', `log-level-${log.level}`]">{{ formatLogLevel(log.level) }}</span>
+                <span :class="['log-stage-badge', `log-stage-${getLogStageTone(log.stage)}`]">
+                  {{ formatStageLabel(log.stage) }}
+                </span>
                 <span>{{ formatDate(log.created_at) }}</span>
               </div>
               <p>{{ log.message }}</p>
@@ -285,8 +339,8 @@ onUnmounted(() => {
           </div>
 
           <p v-else class="empty-state">No logs yet.</p>
-        </section>
-      </div>
+        </div>
+      </aside>
     </div>
   </section>
 </template>

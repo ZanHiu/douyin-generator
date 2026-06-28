@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_authenticated_user
@@ -340,7 +340,11 @@ def get_job_logs(job_id: str, db: Session = Depends(get_db)) -> list[JobLogItem]
 
 
 @router.get("/{job_id}/download")
-def download_result(job_id: str, db: Session = Depends(get_db)) -> FileResponse:
+def download_result(
+    job_id: str,
+    download: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> FileResponse:
     service = JobService(db)
     job = service.get_job(job_id)
     if job is None:
@@ -348,14 +352,15 @@ def download_result(job_id: str, db: Session = Depends(get_db)) -> FileResponse:
     if job.status != "completed" or not job.output_video_path:
         raise HTTPException(status_code=409, detail="Result is not available yet")
 
-    if service.storage.uses_object_storage():
-        return RedirectResponse(service.storage.get_download_url(job.output_video_path))
-
     path = service.storage.resolve_path(job.output_video_path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Result file not found")
 
-    return FileResponse(path, filename=f"{job_id}_vi.mp4")
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        filename=f"{job_id}_vi.mp4" if download else None,
+    )
 
 
 @router.get("/{job_id}/subtitles")
@@ -366,9 +371,6 @@ def download_subtitles(job_id: str, db: Session = Depends(get_db)) -> FileRespon
         raise HTTPException(status_code=404, detail="Job not found")
     if not job.subtitle_path:
         raise HTTPException(status_code=409, detail="Subtitles are not available yet")
-
-    if service.storage.uses_object_storage():
-        return RedirectResponse(service.storage.get_download_url(job.subtitle_path))
 
     path = service.storage.resolve_path(job.subtitle_path)
     if not path.exists():
@@ -440,7 +442,12 @@ def render_blurred_subtitles(
 
 
 @router.get("/{job_id}/edits/{edit_id}/download")
-def download_rendered_edit(job_id: str, edit_id: str, db: Session = Depends(get_db)) -> FileResponse:
+def download_rendered_edit(
+    job_id: str,
+    edit_id: str,
+    download: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> FileResponse:
     service = JobService(db)
     job = service.get_job(job_id)
     if job is None:
@@ -452,13 +459,15 @@ def download_rendered_edit(job_id: str, edit_id: str, db: Session = Depends(get_
 
     if not edit.output_video_path:
         raise HTTPException(status_code=404, detail="Edited output not found")
-    if service.storage.uses_object_storage():
-        return RedirectResponse(service.storage.get_download_url(edit.output_video_path))
     path = service.storage.resolve_path(edit.output_video_path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Edited output file not found")
 
-    return FileResponse(path, filename=f"{job_id}_{edit_id[:8]}_vi_edit.mp4")
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        filename=f"{job_id}_{edit_id[:8]}_vi_edit.mp4" if download else None,
+    )
 
 
 @router.get("/{job_id}/edits/render/download")

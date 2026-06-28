@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { Check, ChevronDown, Download, Pencil, RefreshCw, Search } from 'lucide-vue-next'
-import { listAllJobEdits, listJobEditsPage, resolveApiAssetUrl } from '../lib/api'
+import { listAllJobEdits, listJobEditsPage, resolveApiDownloadUrl } from '../lib/api'
 import type { JobEditListItem, JobEditSort, JobEditToolFilter } from '../lib/types'
 
 const route = useRoute()
@@ -383,7 +383,7 @@ watch(() => route.fullPath, loadEditHistoryFromRoute)
                 </RouterLink>
                 <a
                   class="primary-button compact-button icon-button"
-                  :href="resolveApiAssetUrl(item.result_url)"
+                  :href="resolveApiDownloadUrl(item.result_url)"
                   title="Download edited video"
                   aria-label="Download edited video"
                   @click.stop
