@@ -58,6 +58,7 @@ def logout(
 ) -> Response:
     AuthService(db).revoke_session(auth_token or "")
     _clear_auth_cookie(response)
+    response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
 
